@@ -41,6 +41,36 @@
     <div id="fps">FPS: 0</div>
     <div id="controls">
         <label>
+            x:
+            <input type="range" id="xControl" min="0" max="360.0" step="0.1" value="30.0">
+            <span id="xValue">0.0</span>
+        </label>
+        <label>
+            y:
+            <input type="range" id="yControl" min="0" max="360.0" step="0.1" value="30.0">
+            <span id="yValue">0.0</span>
+        </label>
+        <label>
+            z:
+            <input type="range" id="zControl" min="0" max="360.0" step="0.1" value="30.0">
+            <span id="zValue">0.0</span>
+        </label>
+        <label>
+            xCamera:
+            <input type="range" id="xCameraControl" min="0" max="360.0" step="0.1" value="30.0">
+            <span id="xCameraValue">0.0</span>
+        </label>
+        <label>
+            yCamera:
+            <input type="range" id="yCameraControl" min="0" max="360.0" step="0.1" value="30.0">
+            <span id="yCameraValue">0.0</span>
+        </label>
+        <label>
+            zCamera:
+            <input type="range" id="zCameraControl" min="0" max="360.0" step="0.1" value="30.0">
+            <span id="zCameraValue">0.0</span>
+        </label>
+        <label>
             cameraAngle:
             <input type="range" id="cameraAngleControl" min="0" max="360.0" step="0.1" value="30.0">
             <span id="cameraAngleValue">0.0</span>
@@ -50,11 +80,16 @@
             <input type="range" id="fieldOfViewControl" min="0" max="180.0" step="0.1" value="30.0">
             <span id="fieldOfViewValue">0.0</span>
         </label>
+        <label>
+            shininess:
+            <input type="range" id="shininessControl" min="0" max="380.0" step="0.1" value="30.0">
+            <span id="shininessValue">0.0</span>
+        </label>
     </div>
     <canvas id="glCanvas" width="640" height="480"></canvas>
     <script type="module">
 
-        import {setColors, degToRad, m4, getXYRotation, set3DGeometry, setRectangle} from "./math/utils.js";
+        import {normalize, setNormals, setColors, degToRad, m4, getXYRotation, set3DGeometry, setRectangle} from "./math/utils.js";
 
         import {loadShader, initShaderProgram, compileShader} from "./webgl/mod.js";
 
@@ -100,23 +135,35 @@
             // Store locations of uniforms
             const programInfo = {
                 uniforms: {
-                    time: gl.getUniformLocation(shaderProgram, 'uTime'),
-                    radius: gl.getUniformLocation(shaderProgram, 'uRadius'),
-                    matrix: gl.getUniformLocation(shaderProgram, 'u_matrix'),
+                    time: gl.getUniformLocation(shaderProgram, 'u_time'),
+                    radius: gl.getUniformLocation(shaderProgram, 'u_radius'),
+                    worldViewProjection: gl.getUniformLocation(shaderProgram, 'u_worldViewProjection'),
+                    worldInverseTransposeLocation: gl.getUniformLocation(shaderProgram, 'u_worldInverseTranspose'),
+                    color: gl.getUniformLocation(shaderProgram, 'u_color'),
+                    // lightDirection: gl.getUniformLocation(shaderProgram, 'u_reverseLightDirection'),
+                    lightWorldPosition: gl.getUniformLocation(shaderProgram, 'u_lightWorldPosition'),
+                    worldLocation: gl.getUniformLocation(shaderProgram, 'u_world'),
+                    viewWorldPosition: gl.getUniformLocation(shaderProgram, 'u_worldViewPosition'),
+                    shininess: gl.getUniformLocation(shaderProgram, 'u_shininess'),
                 },
                 attribs: {
                     position: gl.getAttribLocation(shaderProgram, 'a_position'),
-                    color: gl.getAttribLocation(shaderProgram, 'a_color'),
+                    // color: gl.getAttribLocation(shaderProgram, 'a_color'),
+                    normals: gl.getAttribLocation(shaderProgram, 'a_normals'),
                 }
             };
 
 
             var fieldOfViewRadians = degToRad(60);
             var cameraAngleRadians = degToRad(0);
+            var shininess = 150;
             var numFs = 5;
-            var radius = 200;
+            var radius = 500;
+            var camera = [100, 150, 200];
 
             var fPosition = [radius, 0, 0];
+
+            var lightSource = [20, 30, 50];
 
 
             // Setup controls
@@ -127,6 +174,23 @@
             const cameraAngleControl = document.getElementById('cameraAngleControl');
             const cameraAngleValue = document.getElementById('cameraAngleValue');
 
+            const xControl = document.getElementById('xControl');
+            const xValue = document.getElementById('xValue');
+            const yControl = document.getElementById('yControl');
+            const yValue = document.getElementById('yValue');
+            const zControl = document.getElementById('zControl');
+            const zValue = document.getElementById('zValue');
+
+
+            const xCameraControl = document.getElementById('xCameraControl');
+            const xCameraValue = document.getElementById('xCameraValue');
+            const yCameraControl = document.getElementById('yCameraControl');
+            const yCameraValue = document.getElementById('yCameraValue');
+            const zCameraControl = document.getElementById('zCameraControl');
+            const zCameraValue = document.getElementById('zCameraValue');
+
+            const shininessControl = document.getElementById('shininessControl');
+            const shininessValue = document.getElementById('shininessValue');
 
             fieldOfViewControl.addEventListener('input', (event) => {
                 fieldOfViewValue.value = parseFloat(event.target.value, 10);
@@ -138,20 +202,57 @@
                 cameraAngleValue.textContent = event.target.value;
                 cameraAngleRadians = cameraAngleValue.value * Math.PI / 180.;
             });
+            xControl.addEventListener('input', (event) => {
+                xValue.value = parseFloat(event.target.value, 10);
+                xValue.textContent = event.target.value;
+                lightSource[0] = xValue.value;
+            });
+            yControl.addEventListener('input', (event) => {
+                yValue.value = parseFloat(event.target.value, 10);
+                yValue.textContent = event.target.value;
+                lightSource[1] = yValue.value;
+            });
+            zControl.addEventListener('input', (event) => {
+                zValue.value = parseFloat(event.target.value, 10);
+                zValue.textContent = event.target.value;
+                lightSource[2] = zValue.value;
+            });
+            xCameraControl.addEventListener('input', (event) => {
+                xCameraValue.value = parseFloat(event.target.value, 10);
+                xCameraValue.textContent = event.target.value;
+                camera[0] = xCameraValue.value;
+            });
+            yCameraControl.addEventListener('input', (event) => {
+                yCameraValue.value = parseFloat(event.target.value, 10);
+                yCameraValue.textContent = event.target.value;
+                camera[1] = yCameraValue.value;
+            });
+            zCameraControl.addEventListener('input', (event) => {
+                zCameraValue.value = parseFloat(event.target.value, 10);
+                zCameraValue.textContent = event.target.value;
+                camera[2] = zCameraValue.value;
+            });
+            shininessControl.addEventListener('input', (event) => {
+                shininessValue.value = parseFloat(event.target.value, 10);
+                shininessValue.textContent = event.target.value;
+                shininess = shininessValue.value;
+            });
+
 
 
             // Create and bind buffer
             const vertexBuffer = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+            set3DGeometry(gl);
 
-            const colorBuffer = gl.createBuffer();
-            gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
-            setColors(gl);
-
-
+            var normalBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+            setNormals(gl);
 
             // Initialize FPS counter
             const fpsCounter = new FPSCounter();
+
+            render();
 
             // Animation function
             function render(time) {
@@ -167,23 +268,33 @@
 
 
                 // Update uniforms
-                gl.uniform1f(programInfo.uniforms.time, time);
+                // gl.uniform1f(programInfo.uniforms.time, time);
+                gl.uniform1f(programInfo.uniforms.radius, radius);
+                gl.uniform4fv(programInfo.uniforms.color, [0.2, 1, 0.2, 1]); // green
+                gl.uniform1f(programInfo.uniforms.shininess, shininess);
+                // gl.uniform3fv(programInfo.uniforms.lightDirection, normalize([0.5, 0.7, 1]));
+                gl.uniform3fv(programInfo.uniforms.lightWorldPosition, lightSource);
+
 
                 // Camera Generation
-                console.log(cameraAngleRadians);
-                var cameraMatrix = m4.yRotation(cameraAngleRadians);
-                cameraMatrix = m4.translate(cameraMatrix, 0, 0, radius * 1.5);
+                // var cameraMatrix = m4.yRotation(cameraAngleRadians);
+                // var cameraMatrix = m4.xRotation(Math.PI / 4);// m4.yRotation(Math.PI / 60 * time);
+                // cameraMatrix = m4.yRotate(cameraMatrix, Math.PI / 4);
+                // cameraMatrix = m4.translate(cameraMatrix, 0, 0, radius * 1.5);
 
-                var cameraPosition = [
-                    cameraMatrix[12],
-                    cameraMatrix[13],
-                    cameraMatrix[14],
-                ];
+                // var cameraPosition = [
+                //     cameraMatrix[12],
+                //     cameraMatrix[13],
+                //     cameraMatrix[14],
+                // ];
 
-
+                var target = [0, 35, 0];
                 var up = [0, 1, 0];
 
-                var cameraMatrix = m4.lookAt(cameraPosition, fPosition, up);
+                var cameraMatrix = m4.lookAt(camera, target, up);
+
+                gl.uniform3fv(programInfo.uniforms.viewWorldPosition, camera);
+
 
                 var viewMatrix = m4.inverse(cameraMatrix);
 
@@ -195,11 +306,22 @@
 
                 var viewProjectionMatrix = m4.multiply(projectionMatrix, viewMatrix);
 
+                var worldMatrix = m4.yRotation(cameraAngleRadians);
+                var worldViewProjectionMatrix = m4.multiply(viewProjectionMatrix, worldMatrix);
+                console.log(worldViewProjectionMatrix);
+                var worldInverseMatrix = m4.inverse(worldMatrix);
+                var worldInverseTransposeMatrix = m4.transpose(worldInverseMatrix);
+
+                gl.uniformMatrix4fv(programInfo.uniforms.worldViewProjectionMatrix, false, worldViewProjectionMatrix);
+                gl.uniformMatrix4fv(programInfo.uniforms.worldInverseTransposeLocation, false, worldInverseTransposeMatrix);
+                gl.uniformMatrix4fv(programInfo.uniforms.worldLocation, false, worldMatrix);
+
+
 
                 // Set up vertex attributes
                 gl.enableVertexAttribArray(programInfo.attribs.position);
                 gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-                set3DGeometry(gl);
+                // set3DGeometry(gl);
 
                 gl.vertexAttribPointer(
                     programInfo.attribs.position,
@@ -210,17 +332,16 @@
                     0           // offset
                 );
 
-                gl.enableVertexAttribArray(programInfo.attribs.color);
-                gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+                gl.enableVertexAttribArray(programInfo.attribs.normals);
 
-                const size = 3;
-                const type = gl.UNSIGNED_BYTE;
-                const normalize = true;
-                const stride = 0;
-                const offset = 0;
+                gl.bindBuffer(gl.ARRAY_BUFFER, normalBuffer);
+                // setNormals(gl);
 
-                gl.vertexAttribPointer(programInfo.attribs.color, size, type, normalize, stride, offset);
+                gl.vertexAttribPointer(programInfo.attribs.normals, 3, gl.FLOAT, false, 0, 0);
 
+                // var primitiveType = gl.TRIANGLES;
+                // var count = 16 * 6;
+                // gl.drawArrays(primitiveType, 0, count);
                 // Scene Rendering  
 
                 for (var ii = 0; ii < numFs; ++ii) {
@@ -230,10 +351,12 @@
 
                     // starting with the view projection matrix
                     // compute a matrix for the F
-                    var matrix = m4.translate(viewProjectionMatrix, x, 0, y);
+                    var worldToObjectMatrix = m4.translation(x, 0, y);
+                    var matrix = m4.multiply(viewProjectionMatrix, worldToObjectMatrix);
 
                     // Set the matrix.
-                    gl.uniformMatrix4fv(programInfo.uniforms.matrix, false, matrix);
+                    gl.uniformMatrix4fv(programInfo.uniforms.worldViewProjection, false, matrix);
+                    gl.uniformMatrix4fv(programInfo.uniforms.worldLocation, false, worldToObjectMatrix);
 
                     // Draw the geometry.
                     var primitiveType = gl.TRIANGLES;

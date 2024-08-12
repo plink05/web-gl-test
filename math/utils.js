@@ -1,4 +1,12 @@
 export var m4 = {
+  transpose: function(m) {
+    return [
+      m[0], m[4], m[8], m[12],
+      m[1], m[5], m[9], m[13],
+      m[2], m[6], m[10], m[14],
+      m[3], m[7], m[11], m[15],
+    ];
+  },
     vectorMultiply: function(v, m) {
     var dst = [];
     for (var i = 0; i < 4; ++i) {
@@ -710,6 +718,138 @@ export function normalize(v) {
   } else {
     return [0, 0, 0];
   }
+}
+
+export function setNormals(gl) {
+  var normals = new Float32Array([
+          // left column front
+          0, 0, 1,
+          0, 0, 1,
+          0, 0, 1,
+          0, 0, 1,
+          0, 0, 1,
+          0, 0, 1,
+ 
+          // top rung front
+          0, 0, 1,
+          0, 0, 1,
+          0, 0, 1,
+          0, 0, 1,
+          0, 0, 1,
+          0, 0, 1,
+ 
+          // middle rung front
+          0, 0, 1,
+          0, 0, 1,
+          0, 0, 1,
+          0, 0, 1,
+          0, 0, 1,
+          0, 0, 1,
+ 
+          // left column back
+          0, 0, -1,
+          0, 0, -1,
+          0, 0, -1,
+          0, 0, -1,
+          0, 0, -1,
+          0, 0, -1,
+ 
+          // top rung back
+          0, 0, -1,
+          0, 0, -1,
+          0, 0, -1,
+          0, 0, -1,
+          0, 0, -1,
+          0, 0, -1,
+ 
+          // middle rung back
+          0, 0, -1,
+          0, 0, -1,
+          0, 0, -1,
+          0, 0, -1,
+          0, 0, -1,
+          0, 0, -1,
+ 
+          // top
+          0, 1, 0,
+          0, 1, 0,
+          0, 1, 0,
+          0, 1, 0,
+          0, 1, 0,
+          0, 1, 0,
+ 
+          // top rung right
+          1, 0, 0,
+          1, 0, 0,
+          1, 0, 0,
+          1, 0, 0,
+          1, 0, 0,
+          1, 0, 0,
+ 
+          // under top rung
+          0, -1, 0,
+          0, -1, 0,
+          0, -1, 0,
+          0, -1, 0,
+          0, -1, 0,
+          0, -1, 0,
+ 
+          // between top rung and middle
+          1, 0, 0,
+          1, 0, 0,
+          1, 0, 0,
+          1, 0, 0,
+          1, 0, 0,
+          1, 0, 0,
+ 
+          // top of middle rung
+          0, 1, 0,
+          0, 1, 0,
+          0, 1, 0,
+          0, 1, 0,
+          0, 1, 0,
+          0, 1, 0,
+ 
+          // right of middle rung
+          1, 0, 0,
+          1, 0, 0,
+          1, 0, 0,
+          1, 0, 0,
+          1, 0, 0,
+          1, 0, 0,
+ 
+          // bottom of middle rung.
+          0, -1, 0,
+          0, -1, 0,
+          0, -1, 0,
+          0, -1, 0,
+          0, -1, 0,
+          0, -1, 0,
+ 
+          // right of bottom
+          1, 0, 0,
+          1, 0, 0,
+          1, 0, 0,
+          1, 0, 0,
+          1, 0, 0,
+          1, 0, 0,
+ 
+          // bottom
+          0, -1, 0,
+          0, -1, 0,
+          0, -1, 0,
+          0, -1, 0,
+          0, -1, 0,
+          0, -1, 0,
+ 
+          // left side
+          -1, 0, 0,
+          -1, 0, 0,
+          -1, 0, 0,
+          -1, 0, 0,
+          -1, 0, 0,
+          -1, 0, 0]);
+  gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW);
 }
 
 
