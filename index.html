@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Moving WebGL Triangle</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+        }
+
+        #fps {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+
+        #controls {
+            position: fixed;
+            top: 50px;
+            left: 10px;
+            color: white;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 3px;
+            font-family: monospace;
+        }
+
+        label {
+            display: block;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="fps">FPS: 0</div>
+    <div id="controls">
+        <label>
+            Speed:
+            <input type="range" id="speedControl" min="0" max="2" step="0.1" value="1">
+            <span id="speedValue">1.0</span>
+        </label>
+        <label>
+            Radius:
+            <input type="range" id="radiusControl" min="0" max="0.8" step="0.1" value="0.5">
+            <span id="radiusValue">0.5</span>
+        </label>
+        <label>
+            X:
+            <input type="range" id="xControl" min="0" max="640" step="1" value="0.0">
+            <span id="xValue">0.0</span>
+        </label>
+        <label>
+            Y:
+            <input type="range" id="yControl" min="0" max="480" step="1" value="0.0">
+            <span id="yValue">0.0</span>
+        </label>
+        <label>
+            xScale:
+            <input type="range" id="xScaleControl" min="0" max="480" step="1" value="1.0">
+            <span id="xScaleValue">1.0</span>
+        </label>
+        <label>
+            yScale:
+            <input type="range" id="yScaleControl" min="0" max="480" step="1" value="1.0">
+            <span id="yScaleValue">1.0</span>
+        </label>
+        <label>
+            Rotation:
+            <input type="range" id="rotationControl" min="0" max="360" step="0.1" value="0.0">
+            <span id="rotationValue">0.0</span>
+        </label>
+    </div>
+    <canvas id="glCanvas" width="640" height="480"></canvas>
+    <script type="module">
+
+        import {m3, getXYRotation, setGeometry, setRectangle} from "./math/utils.js";
+        async function loadShader(url) {
+            const response = await fetch(url);
+            console.log(response);
+            return response.text();
+        }
+
+
+
+
+        function initShaderProgram(gl, vsSource, fsSource) {
+            const vertexShader = compileShader(gl, gl.VERTEX_SHADER, vsSource);
+            const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, fsSource);
+
+            const shaderProgram = gl.createProgram();
+            gl.attachShader(shaderProgram, vertexShader);
+            gl.attachShader(shaderProgram, fragmentShader);
+            gl.linkProgram(shaderProgram);
+
+            if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+                console.error('Unable to initialize the shader program: ' + gl.getProgramInfoLog(shaderProgram));
+                return null;
+            }
+
+            return shaderProgram;
+        }
+
+        function compileShader(gl, type, source) {
+            const shader = gl.createShader(type);
+            gl.shaderSource(shader, source);
+            gl.compileShader(shader);
+
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                console.error('An error occurred compiling the shaders: ' + gl.getShaderInfoLog(shader));
+                gl.deleteShader(shader);
+                return null;
+            }
+
+            return shader;
+        }
+
+        class FPSCounter {
+            constructor() {
+                this.fps = 0;
+                this.frames = 0;
+                this.lastTime = performance.now();
+                this.element = document.getElementById('fps');
+            }
+
+            update() {
+                this.frames++;
+                const currentTime = performance.now();
+                const elapsed = currentTime - this.lastTime;
+
+                if (elapsed >= 1000) {
+                    this.fps = Math.round((this.frames * 1000) / elapsed);
+                    this.frames = 0;
+                    this.lastTime = currentTime;
+                    this.element.textContent = `FPS: ${this.fps}`;
+                }
+            }
+        }
+
+        async function main() {
+            const canvas = document.querySelector("#glCanvas");
+            const gl = canvas.getContext("webgl");
+
+            if (gl === null) {
+                console.error("Unable to initialize WebGL");
+                return;
+            }
+
+
+            // Load shaders
+            const vsSource = await loadShader('shaders/vertex.glsl');
+            const fsSource = await loadShader('shaders/fragment.glsl');
+
+            // Initialize shader program
+            const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
+
+            // Store locations of uniforms
+            const programInfo = {
+                uniforms: {
+                    time: gl.getUniformLocation(shaderProgram, 'uTime'),
+                    radius: gl.getUniformLocation(shaderProgram, 'uRadius'),
+                    matrix: gl.getUniformLocation(shaderProgram, 'u_matrix'),
+                },
+                attribs: {
+                    position: gl.getAttribLocation(shaderProgram, 'a_position')
+                }
+            };
+
+            var translation = [0, 0];
+            var angleInRadians = 0.0;
+            var scale = [1, 1];
+
+            // Setup controls
+            const speedControl = document.getElementById('speedControl');
+            const radiusControl = document.getElementById('radiusControl');
+            const speedValue = document.getElementById('speedValue');
+            const radiusValue = document.getElementById('radiusValue');
+            const xControl = document.getElementById('xControl');
+            const xValue = document.getElementById('xValue');
+            const yControl = document.getElementById('yControl');
+            const yValue = document.getElementById('yValue');
+
+            const rotationControl = document.getElementById('rotationControl');
+            const rotationValue = document.getElementById('rotationValue');
+
+            const xScaleControl = document.getElementById('xScaleControl');
+            const xScaleValue = document.getElementById('xScaleValue');
+            const yScaleControl = document.getElementById('yScaleControl');
+            const yScaleValue = document.getElementById('yScaleValue');
+
+
+
+            xControl.addEventListener('input', (event) => {
+                xValue.value = parseInt(event.target.value, 10);
+                xValue.textContent = event.target.value;
+                translation[0] = xValue.value;
+            });
+            yControl.addEventListener('input', (event) => {
+                yValue.value = parseInt(event.target.value, 10);
+                yValue.textContent = event.target.value;
+                translation[1] = yValue.value;
+            });
+            xScaleControl.addEventListener('input', (event) => {
+                xScaleValue.value = parseInt(event.target.value, 10);
+                xScaleValue.textContent = event.target.value;
+                scale[0] = xScaleValue.value;
+            });
+            yScaleControl.addEventListener('input', (event) => {
+                yScaleValue.value = parseInt(event.target.value, 10);
+                yScaleValue.textContent = event.target.value;
+                scale[1] = yScaleValue.value;
+            });
+            rotationControl.addEventListener('input', (event) => {
+                rotationValue.value = parseFloat(event.target.value, 10);
+                rotationValue.textContent = event.target.value;
+                angleInRadians = rotationValue.value * Math.PI / 180.
+            });
+
+            speedControl.addEventListener('input', () => {
+                speedValue.textContent = speedControl.value;
+            });
+
+            radiusControl.addEventListener('input', () => {
+                radiusValue.textContent = radiusControl.value;
+            });
+
+
+            // Create and bind buffer
+            const vertexBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+
+            // Initialize FPS counter
+            const fpsCounter = new FPSCounter();
+
+            // Animation function
+            function render(time) {
+                time *= 0.001; // Convert to seconds
+
+                gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+                gl.clearColor(0.0, 0.0, 0.0, 1.0);
+                gl.clear(gl.COLOR_BUFFER_BIT);
+
+                gl.useProgram(shaderProgram);
+
+                // Update uniforms
+                var matrix = m3.projection(gl.canvas.clientWidth, gl.canvas.clientHeight);
+                const speed = parseFloat(speedControl.value);
+                const radius = parseFloat(radiusControl.value);
+                gl.uniform1f(programInfo.uniforms.time, time * speed);
+                gl.uniform1f(programInfo.uniforms.radius, radius);
+                matrix = m3.translate(matrix, translation[0], translation[1]);
+                matrix = m3.rotate(matrix, angleInRadians);
+                matrix = m3.scale(matrix, scale[0], scale[1]);
+                console.log(matrix);
+                gl.uniformMatrix3fv(programInfo.uniforms.matrix, false, matrix);
+
+                // Set up vertex attributes
+                gl.enableVertexAttribArray(programInfo.attribs.position);
+                gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+                setGeometry(gl);
+
+                gl.vertexAttribPointer(
+                    programInfo.attribs.position,
+                    2,          // 2 components per vertex
+                    gl.FLOAT,   // data type
+                    false,      // don't normalize
+                    0,          // stride
+                    0           // offset
+                );
+
+                // Draw the triangle
+                gl.drawArrays(gl.TRIANGLES, 0, 18);
+
+                // Update FPS counter
+                fpsCounter.update();
+
+                requestAnimationFrame(render);
+            }
+
+            requestAnimationFrame(render);
+        }
+
+        window.onload = main;
+    </script>
+</body>
+
+</html>
