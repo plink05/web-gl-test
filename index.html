@@ -41,84 +41,62 @@
     <div id="fps">FPS: 0</div>
     <div id="controls">
         <label>
-            Speed:
-            <input type="range" id="speedControl" min="0" max="2" step="0.1" value="1">
-            <span id="speedValue">1.0</span>
-        </label>
-        <label>
-            Radius:
-            <input type="range" id="radiusControl" min="0" max="0.8" step="0.1" value="0.5">
-            <span id="radiusValue">0.5</span>
-        </label>
-        <label>
             X:
-            <input type="range" id="xControl" min="0" max="640" step="1" value="0.0">
+            <input type="range" id="xControl" min="-200" max="200" step="1" value="0.0">
             <span id="xValue">0.0</span>
         </label>
         <label>
             Y:
-            <input type="range" id="yControl" min="0" max="480" step="1" value="0.0">
+            <input type="range" id="yControl" min="-200" max="200" step="1" value="0.0">
             <span id="yValue">0.0</span>
         </label>
         <label>
+            z:
+            <input type="range" id="zControl" min="-1000" max="0" step="1" value="0.0">
+            <span id="zValue">0.0</span>
+        </label>
+        <label>
             xScale:
-            <input type="range" id="xScaleControl" min="0" max="480" step="1" value="1.0">
+            <input type="range" id="xScaleControl" min="0" max="3.0" step="0.1" value="1.0">
             <span id="xScaleValue">1.0</span>
         </label>
         <label>
             yScale:
-            <input type="range" id="yScaleControl" min="0" max="480" step="1" value="1.0">
+            <input type="range" id="yScaleControl" min="0" max="3.0" step="0.1" value="1.0">
             <span id="yScaleValue">1.0</span>
         </label>
         <label>
-            Rotation:
-            <input type="range" id="rotationControl" min="0" max="360" step="0.1" value="0.0">
-            <span id="rotationValue">0.0</span>
+            zScale:
+            <input type="range" id="zScaleControl" min="0" max="3.0" step="0.1" value="1.0">
+            <span id="zScaleValue">1.0</span>
+        </label>
+        <label>
+            xRotation:
+            <input type="range" id="xRotationControl" min="0" max="360" step="0.1" value="0.0">
+            <span id="xRotationValue">0.0</span>
+        </label>
+        <label>
+            yRotation:
+            <input type="range" id="yRotationControl" min="0" max="360" step="0.1" value="0.0">
+            <span id="yRotationValue">0.0</span>
+        </label>
+        <label>
+            zRotation:
+            <input type="range" id="zRotationControl" min="0" max="360" step="0.1" value="0.0">
+            <span id="zRotationValue">0.0</span>
+        </label>
+        <label>
+            fieldOfView:
+            <input type="range" id="fieldOfViewControl" min="0" max="180.0" step="0.1" value="30.0">
+            <span id="fieldOfViewValue">0.0</span>
         </label>
     </div>
     <canvas id="glCanvas" width="640" height="480"></canvas>
     <script type="module">
 
-        import {m3, getXYRotation, setGeometry, setRectangle} from "./math/utils.js";
-        async function loadShader(url) {
-            const response = await fetch(url);
-            console.log(response);
-            return response.text();
-        }
+        import {setColors, degToRad, m4, getXYRotation, set3DGeometry, setRectangle} from "./math/utils.js";
 
-
-
-
-        function initShaderProgram(gl, vsSource, fsSource) {
-            const vertexShader = compileShader(gl, gl.VERTEX_SHADER, vsSource);
-            const fragmentShader = compileShader(gl, gl.FRAGMENT_SHADER, fsSource);
-
-            const shaderProgram = gl.createProgram();
-            gl.attachShader(shaderProgram, vertexShader);
-            gl.attachShader(shaderProgram, fragmentShader);
-            gl.linkProgram(shaderProgram);
-
-            if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
-                console.error('Unable to initialize the shader program: ' + gl.getProgramInfoLog(shaderProgram));
-                return null;
-            }
-
-            return shaderProgram;
-        }
-
-        function compileShader(gl, type, source) {
-            const shader = gl.createShader(type);
-            gl.shaderSource(shader, source);
-            gl.compileShader(shader);
-
-            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-                console.error('An error occurred compiling the shaders: ' + gl.getShaderInfoLog(shader));
-                gl.deleteShader(shader);
-                return null;
-            }
-
-            return shader;
-        }
+        import {loadShader, initShaderProgram, compileShader} from "./webgl/mod.js";
 
         class FPSCounter {
             constructor() {
@@ -167,31 +145,41 @@
                     matrix: gl.getUniformLocation(shaderProgram, 'u_matrix'),
                 },
                 attribs: {
-                    position: gl.getAttribLocation(shaderProgram, 'a_position')
+                    position: gl.getAttribLocation(shaderProgram, 'a_position'),
+                    color: gl.getAttribLocation(shaderProgram, 'a_color'),
                 }
             };
 
-            var translation = [0, 0];
-            var angleInRadians = 0.0;
-            var scale = [1, 1];
+            var translation = [-150, 0, -360];
+            var rotation = [degToRad(190), degToRad(40), degToRad(320)];
+            var scale = [1, 1, 1];
+
+            var fieldOfViewRadians = degToRad(60);
 
             // Setup controls
-            const speedControl = document.getElementById('speedControl');
-            const radiusControl = document.getElementById('radiusControl');
-            const speedValue = document.getElementById('speedValue');
-            const radiusValue = document.getElementById('radiusValue');
             const xControl = document.getElementById('xControl');
             const xValue = document.getElementById('xValue');
             const yControl = document.getElementById('yControl');
             const yValue = document.getElementById('yValue');
+            const zControl = document.getElementById('zControl');
+            const zValue = document.getElementById('zValue');
 
-            const rotationControl = document.getElementById('rotationControl');
-            const rotationValue = document.getElementById('rotationValue');
+            const xRotationControl = document.getElementById('xRotationControl');
+            const xRotationValue = document.getElementById('xRotationValue');
+            const yRotationControl = document.getElementById('yRotationControl');
+            const yRotationValue = document.getElementById('yRotationValue');
+            const zRotationControl = document.getElementById('zRotationControl');
+            const zRotationValue = document.getElementById('zRotationValue');
 
             const xScaleControl = document.getElementById('xScaleControl');
             const xScaleValue = document.getElementById('xScaleValue');
             const yScaleControl = document.getElementById('yScaleControl');
             const yScaleValue = document.getElementById('yScaleValue');
+            const zScaleControl = document.getElementById('zScaleControl');
+            const zScaleValue = document.getElementById('zScaleValue');
+
+            const fieldOfViewControl = document.getElementById('fieldOfViewControl');
+            const fieldOfViewValue = document.getElementById('fieldOfViewValue');
 
 
 
@@ -205,28 +193,45 @@
                 yValue.textContent = event.target.value;
                 translation[1] = yValue.value;
             });
+            zControl.addEventListener('input', (event) => {
+                zValue.value = parseFloat(event.target.value, 10);
+                zValue.textContent = event.target.value;
+                translation[2] = zValue.value;
+            });
             xScaleControl.addEventListener('input', (event) => {
-                xScaleValue.value = parseInt(event.target.value, 10);
+                xScaleValue.value = parseFloat(event.target.value, 10);
                 xScaleValue.textContent = event.target.value;
                 scale[0] = xScaleValue.value;
             });
             yScaleControl.addEventListener('input', (event) => {
-                yScaleValue.value = parseInt(event.target.value, 10);
+                yScaleValue.value = parseFloat(event.target.value, 10);
                 yScaleValue.textContent = event.target.value;
                 scale[1] = yScaleValue.value;
             });
-            rotationControl.addEventListener('input', (event) => {
-                rotationValue.value = parseFloat(event.target.value, 10);
-                rotationValue.textContent = event.target.value;
-                angleInRadians = rotationValue.value * Math.PI / 180.
+            zScaleControl.addEventListener('input', (event) => {
+                zScaleValue.value = parseFloat(event.target.value, 10);
+                zScaleValue.textContent = event.target.value;
+                scale[2] = zScaleValue.value;
             });
-
-            speedControl.addEventListener('input', () => {
-                speedValue.textContent = speedControl.value;
+            xRotationControl.addEventListener('input', (event) => {
+                xRotationValue.value = parseFloat(event.target.value, 10);
+                xRotationValue.textContent = event.target.value;
+                rotation[0] = xRotationValue.value * Math.PI / 180.
             });
-
-            radiusControl.addEventListener('input', () => {
-                radiusValue.textContent = radiusControl.value;
+            yRotationControl.addEventListener('input', (event) => {
+                yRotationValue.value = parseFloat(event.target.value, 10);
+                yRotationValue.textContent = event.target.value;
+                rotation[1] = yRotationValue.value * Math.PI / 180.
+            });
+            zRotationControl.addEventListener('input', (event) => {
+                zRotationValue.value = parseFloat(event.target.value, 10);
+                zRotationValue.textContent = event.target.value;
+                rotation[2] = zRotationValue.value * Math.PI / 180.
+            });
+            fieldOfViewControl.addEventListener('input', (event) => {
+                fieldOfViewValue.value = parseFloat(event.target.value, 10);
+                fieldOfViewValue.textContent = event.target.value;
+                fieldOfViewRadians = fieldOfViewValue.value * Math.PI / 180.;
             });
 
 
@@ -234,8 +239,15 @@
             const vertexBuffer = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
 
+            const colorBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+            setColors(gl);
+
+
+
             // Initialize FPS counter
             const fpsCounter = new FPSCounter();
+
 
             // Animation function
             function render(time) {
@@ -243,38 +255,75 @@
 
                 gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
                 gl.clearColor(0.0, 0.0, 0.0, 1.0);
-                gl.clear(gl.COLOR_BUFFER_BIT);
+                gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+                gl.enable(gl.CULL_FACE);
+                gl.enable(gl.DEPTH_TEST);
 
                 gl.useProgram(shaderProgram);
 
+
                 // Update uniforms
-                var matrix = m3.projection(gl.canvas.clientWidth, gl.canvas.clientHeight);
-                const speed = parseFloat(speedControl.value);
-                const radius = parseFloat(radiusControl.value);
-                gl.uniform1f(programInfo.uniforms.time, time * speed);
-                gl.uniform1f(programInfo.uniforms.radius, radius);
-                matrix = m3.translate(matrix, translation[0], translation[1]);
-                matrix = m3.rotate(matrix, angleInRadians);
-                matrix = m3.scale(matrix, scale[0], scale[1]);
-                console.log(matrix);
-                gl.uniformMatrix3fv(programInfo.uniforms.matrix, false, matrix);
+                gl.uniform1f(programInfo.uniforms.time, time);
+                var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
+                var zNear = 1;
+                var zFar = 2000;
+                var matrix = m4.perspective(fieldOfViewRadians, aspect, zNear, zFar);
+                matrix = m4.translate(matrix, translation[0], translation[1], translation[2]);
+                matrix = m4.xRotate(matrix, rotation[0]);
+                matrix = m4.yRotate(matrix, rotation[1]);
+                matrix = m4.zRotate(matrix, rotation[2]);
+                matrix = m4.scale(matrix, scale[0], scale[1], scale[2]);
+
+                // var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
+                // var zNear = 1;
+                // var zFar = 2000;
+                // var matrix = m4.perspective(fieldOfViewRadians, aspect, zNear, zFar);
+                // console.log(fieldOfViewRadians);
+                // console.log(matrix);
+                // var left = 0;
+                // var right = gl.canvas.clientWidth;
+                // var bottom = gl.canvas.clientHeight;
+                // var top = 0;
+                // var near = 400;
+                // var far = -400;
+                // // var matrix = m4.orthographic(left, right, bottom, top, near, far);
+                // // console.log(matrix);
+
+                // matrix = m4.translate(matrix, translation[0], translation[1], translation[2]);
+                // matrix = m4.xRotate(matrix, rotation[0]);
+                // matrix = m4.yRotate(matrix, rotation[1]);
+                // matrix = m4.zRotate(matrix, rotation[2]);
+                // matrix = m4.scale(matrix, scale[0], scale[1], scale[2]);
+                gl.uniformMatrix4fv(programInfo.uniforms.matrix, false, matrix);
 
                 // Set up vertex attributes
                 gl.enableVertexAttribArray(programInfo.attribs.position);
                 gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
-                setGeometry(gl);
+                set3DGeometry(gl);
 
                 gl.vertexAttribPointer(
                     programInfo.attribs.position,
-                    2,          // 2 components per vertex
+                    3,          // 2 components per vertex
                     gl.FLOAT,   // data type
                     false,      // don't normalize
                     0,          // stride
                     0           // offset
                 );
 
+                gl.enableVertexAttribArray(programInfo.attribs.color);
+                gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+
+                const size = 3;
+                const type = gl.UNSIGNED_BYTE;
+                const normalize = true;
+                const stride = 0;
+                const offset = 0;
+
+                gl.vertexAttribPointer(programInfo.attribs.color, size, type, normalize, stride, offset);
+
                 // Draw the triangle
-                gl.drawArrays(gl.TRIANGLES, 0, 18);
+                gl.drawArrays(gl.TRIANGLES, 0, 16 * 6);
+
 
                 // Update FPS counter
                 fpsCounter.update();
