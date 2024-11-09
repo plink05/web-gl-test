@@ -1,0 +1,110 @@
+import { normalize, setNormals, setColors, degToRad, m4, getXYRotation, setRectangle } from "./math/utils.js";
+
+import { loadShader, initShaderProgram, compileShader } from "./webgl/mod.js";
+import { FPSCounter } from "./app/fps.js";
+import { UniformManager } from "./webgl/uniforms.js";
+import { AttributeManager } from "./webgl/attribs.js";
+import { ControlManager } from "./app/handleManager.js";
+import { createUniformSetters, createAttributeSetters, setAttributes, setBuffersAndAttributes } from "./webgl/utils.js";
+import { get3DGeometry } from "./math/utils.js";
+
+export async function main() {
+    const canvas = document.querySelector("#glCanvas");
+    const gl = canvas.getContext("webgl");
+
+    if (gl === null) {
+        console.error("Unable to initialize WebGL");
+        return;
+    }
+
+
+    // Load shaders
+    const vsSource = await loadShader('shaders/vertex.glsl');
+    const fsSource = await loadShader('shaders/fragment.glsl');
+
+    // Initialize shader program
+    const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
+
+    var uniformSetters = createUniformSetters(gl, shaderProgram);
+    var attribSetters = createAttributeSetters(gl, shaderProgram);
+
+    var controlManager = setupHandlers();
+
+    var uniformManager = setupUniformManager(gl, controlManager);
+
+    var attributeManager = setupAttributeManager(gl);
+
+
+    // Initialize FPS counter
+    const fpsCounter = new FPSCounter();
+
+    render();
+
+    // Animation function
+    function render(time) {
+        time *= 0.001; // Convert to seconds
+
+        gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+        gl.clearColor(0.0, 0.0, 0.0, 1.0);
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        gl.enable(gl.CULL_FACE);
+        gl.enable(gl.DEPTH_TEST);
+
+        gl.useProgram(shaderProgram);
+
+        // TODO(plink): figure this bit out 
+        // setBuffersAndAttributes(attribSetters, attributeManager.bufferInfo());
+        uniformManager.updateProgram(shaderProgram);
+        attributeManager.draw(shaderProgram);
+
+
+        // Update FPS counter
+        fpsCounter.update();
+
+        console.log(controlManager.getValue("x"));
+
+        requestAnimationFrame(render);
+    }
+
+    requestAnimationFrame(render);
+}
+
+function setupAttributeManager(gl) {
+    var attribManager = new AttributeManager(gl);
+
+    const points = [0.0, 0.0, 0.0, 0.5, 0.5, 0.0, -0.5, 0.5, 0.0]
+
+    attribManager.createAttributes({
+        a_position: {
+            data: points,//get3DGeometry(),
+            numComponents: 3
+        }
+    });
+    return attribManager;
+}
+
+function setupUniformManager(gl, controlManager) {
+    var uniformManager = new UniformManager(gl);
+
+    uniformManager.setUniforms({
+        u_color: [() => controlManager.getValue("x"), 1.0, 0.0, 1.0]
+        // u_xOffset: controlManager.getValue("x"),
+    });
+    return uniformManager;
+}
+
+
+function setupHandlers() {
+
+    var controlManager = new ControlManager();
+    controlManager.addControl({
+        name: "x",
+        controlId: "xControl",
+        valueId: "xValue",
+        transformers: {
+            value: (val) => parseFloat(val, 10)
+        }
+    });
+
+    return controlManager;
+}
