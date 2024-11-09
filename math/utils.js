@@ -726,8 +726,8 @@ export function normalize(v) {
   }
 }
 
-export function setNormals(gl) {
-  var normals = new Float32Array([
+export function getNormals() {
+  return new Float32Array([
     // left column front
     0, 0, 1,
     0, 0, 1,
@@ -855,7 +855,6 @@ export function setNormals(gl) {
     -1, 0, 0,
     -1, 0, 0,
     -1, 0, 0]);
-  gl.bufferData(gl.ARRAY_BUFFER, normals, gl.STATIC_DRAW);
 }
 
 

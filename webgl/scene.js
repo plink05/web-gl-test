@@ -3,6 +3,7 @@ import { UniformManager } from "./uniforms.js";
 import { AttributeManager } from "./attribs.js";
 import { SceneGraph } from "./scenegraph.js";
 import { PerspectiveCamera } from "./camera.js";
+import { Lights } from "./lights.js";
 class Mesh {
     constructor(gl, attributes) {
         this.gl = gl;
@@ -82,9 +83,19 @@ export class Scene {
     createCamera(gl, fovDegrees, zNear, zFar) {
         const aspect = gl.canvas.width / gl.canvas.height;
         const camera = new PerspectiveCamera(fovDegrees, aspect, zNear, zFar);
-        camera.setPosition(0, 100, 500.0);
+        camera.setPosition(0, 300, 500.0);
         camera.lookAt(0.0, 0.0, 0.0);
         this.sceneGraph.addCamera("main", camera);
+    }
+
+    addLights(gl, node, pos, color = [1.0, 1.0, 1.0]) {
+        const light = new Lights(pos, color, node);
+        const parentNode = this.sceneGraph.root.findByName(node);
+        if (!parentNode) {
+            throw new Error(`No parent node named "${node}" found`);
+        }
+        this.sceneGraph.lights.push(light);
+
     }
 
     addShaderProgram(shaderName, shader) {

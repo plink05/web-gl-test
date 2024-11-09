@@ -114,7 +114,7 @@ export class SceneGraph {
         this.root = new Node('root');
         this.shaderPrograms = new Map();
         this.cameras = new Map();
-        this.lights = new Map();
+        this.lights = [];
     }
 
     update() {
@@ -131,9 +131,9 @@ export class SceneGraph {
 
         // Get camera matrices
         // console.log(activeCamera.viewMatrix);
-        console.log(activeCamera.viewMatrix);
+        // console.log(activeCamera.viewMatrix);
         const viewMatrix = m4.inverse(activeCamera.viewMatrix);
-        console.log(viewMatrix);
+        // console.log(viewMatrix);
         //console.log(viewMatrix);
         const projectionMatrix = activeCamera.projectionMatrix;
 
@@ -151,22 +151,32 @@ export class SceneGraph {
                 const matrix = mat4.multiply(mat4.create(), viewProjectionMatrix, node.worldMatrix);
 
                 // Merge common uniforms with out specific ones
+                const merged = this.lights.reduce((acc, obj) => {
+                    return { ...acc, ...obj.getUniforms(this.root.findByName(obj.nodeKey)) };
+                }, {});
+                // console.log(merged);
                 const mergedUniforms = {
                     ...instance.uniforms, ... {
                         u_matrix: matrix,
                         u_worldMatrix: node.worldMatrix,
+                        u_worldInverseTranspose: m4.transpose(m4.inverse(node.worldMatrix)),
                         u_viewMatrix: viewMatrix,
-                        u_projectionMatrix: projectionMatrix
+                        u_projectionMatrix: projectionMatrix,
+                        u_viewPositon: [viewMatrix[12], viewMatrix[13], viewMatrix[14]],
                     }
                 };
+                const mergedUniformss = {
+                    ...mergedUniforms, ...merged
+                }
                 // console.log(mergedUniforms);
-                uniformManager.setUniforms(mergedUniforms);
+                uniformManager.setUniforms(mergedUniformss);
                 uniformManager.updateProgram(shader);
 
                 // Set light uniforms if available
-                this.lights.forEach(light => {
-                    light.setUniforms(shader);
-                });
+                // node.lights.forEach(light => {
+                //     light.setUniforms(uniformManager, this.root.findByName(light.nodeKey));
+                // });
+                // console.log(uniformManager.uniforms);
 
                 // Render the mesh
                 instance.mesh.draw(shader);
@@ -182,9 +192,9 @@ export class SceneGraph {
         this.cameras.set(name, camera);
     }
 
-    addLight(name, light) {
-        this.lights.set(name, light);
-    }
+    // addLight(name, light) {
+    //     this.lights.set(name, light);
+    // }
 
     createNode(name) {
         return new Node(name);

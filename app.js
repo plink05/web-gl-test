@@ -1,4 +1,4 @@
-import { normalize, setNormals, setColors, degToRad, m4, getXYRotation, setRectangle } from "./math/utils.js";
+import { normalize, getNormals, setColors, degToRad, m4, getXYRotation, setRectangle } from "./math/utils.js";
 
 import { loadShader, initShaderProgram, compileShader } from "./webgl/mod.js";
 import { FPSCounter } from "./app/fps.js";
@@ -78,6 +78,7 @@ function setupScene(gl, controlManager) {
     const scene = new Scene(gl);
 
     scene.createCamera(gl, 30, 0.1, 1000);
+    scene.addLights(gl, "root", [100, 100, 100]);
 
     const child = scene.insertNode("child", "root");
 
@@ -90,7 +91,8 @@ function setupScene(gl, controlManager) {
 
 
     scene.createMesh('f', {
-        a_position: { data: get3DGeometry(), numComponents: 3 }
+        a_position: { data: get3DGeometry(), numComponents: 3 },
+        a_normal: { data: getNormals(), numComponents: 3 },
     });
 
     scene.createInstance('f', {
