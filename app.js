@@ -7,6 +7,7 @@ import { AttributeManager } from "./webgl/attribs.js";
 import { ControlManager } from "./app/handleManager.js";
 import { createUniformSetters, createAttributeSetters, setAttributes, setBuffersAndAttributes } from "./webgl/utils.js";
 import { get3DGeometry } from "./math/utils.js";
+import { Scene } from "./webgl/scene.js";
 
 export async function main() {
     const canvas = document.querySelector("#glCanvas");
@@ -25,14 +26,17 @@ export async function main() {
     // Initialize shader program
     const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
 
-    var uniformSetters = createUniformSetters(gl, shaderProgram);
-    var attribSetters = createAttributeSetters(gl, shaderProgram);
+    // var uniformSetters = createUniformSetters(gl, shaderProgram);
+    // var attribSetters = createAttributeSetters(gl, shaderProgram);
 
     var controlManager = setupHandlers();
+    var scene = setupScene(gl, controlManager);
 
-    var uniformManager = setupUniformManager(gl, controlManager);
+    // var uniformManager = setupUniformManager(gl, controlManager);
 
-    var attributeManager = setupAttributeManager(gl);
+    // var attributeManager = setupAttributeManager(gl);
+    //
+
 
 
     // Initialize FPS counter
@@ -52,22 +56,59 @@ export async function main() {
 
         gl.useProgram(shaderProgram);
 
+        scene.draw(shaderProgram);
         // TODO(plink): figure this bit out 
         // setBuffersAndAttributes(attribSetters, attributeManager.bufferInfo());
-        uniformManager.updateProgram(shaderProgram);
-        attributeManager.draw(shaderProgram);
+        // uniformManager.updateProgram(shaderProgram);
+        // attributeManager.draw(shaderProgram);
 
 
         // Update FPS counter
         fpsCounter.update();
-
-        console.log(controlManager.getValue("x"));
 
         requestAnimationFrame(render);
     }
 
     requestAnimationFrame(render);
 }
+
+function setupScene(gl, controlManager) {
+    const scene = new Scene(gl);
+    const square = [-.25, -.25, 0.0,
+        .25, .25, 0.0,
+    -.25, .25, 0.0,
+    -.25, -.25, 0.0,
+        .25, -.25, 0.0,
+        .25, .25, 0.0
+    ];
+    scene.createMesh('square', {
+        a_position: { data: square, numComponents: 3 }
+    });
+    const points = [0.0, 0.0, 0.0, 0.5, 0.5, 0.0, -0.5, 0.5, 0.0]
+    const triangle = [0.0, 0.0, 0.0, 0.5, 0.5, 0.0, -0.5, 0.5, 0.0];
+
+
+    scene.createMesh('triangle', {
+        a_position: { data: triangle, numComponents: 3 }
+    });
+
+    scene.createInstance('triangle', {
+        u_offset: [0.5, 0.0, 0.0],
+        u_color: [() => controlManager.getValue("x"), 0.0, 0.0, 1.0]
+    });
+    scene.createInstance('square', {
+        u_offset: [0.0, 0.5, 0.0],
+        u_color: [0.0, () => controlManager.getValue("x"), 0.0, 1.0]
+    });
+    scene.createInstance('triangle', {
+        u_offset: [0.0, 0.0, 0.0],
+        u_color: [0.0, 0.0, () => controlManager.getValue("x"), 1.0]
+    });
+
+    return scene;
+
+
+};
 
 function setupAttributeManager(gl) {
     var attribManager = new AttributeManager(gl);
