@@ -1,3 +1,6 @@
+import { mat4, vec3, quat } from "../math/helpers.js";
+import { m4 } from "../math/utils.js";
+
 class Node {
     constructor(name = 'unnamed') {
         this.name = name;
@@ -8,7 +11,7 @@ class Node {
         this.position = vec3.create();
         this.rotation = quat.create();
         this.scale = vec3.fromValues(1, 1, 1);
-        this.meshes = [];
+        this.instances = [];
         this.enabled = true;
         this._dirty = true;
     }
@@ -31,33 +34,33 @@ class Node {
     }
 
     setPosition(x, y, z) {
-        vec3.set(this.position, x, y, z);
+        this.position = vec3.set(this.position, x, y, z);
         this._dirty = true;
     }
 
     setRotationFromEuler(x, y, z) {
-        quat.fromEuler(this.rotation, x, y, z);
+        this.rotation = quat.fromEuler(this.rotation, x, y, z);
         this._dirty = true;
     }
 
     setScale(x, y, z) {
-        vec3.set(this.scale, x, y, z);
+        this.scale = vec3.set(this.scale, x, y, z);
         this._dirty = true;
     }
 
-    addMesh(mesh) {
-        this.meshes.push(mesh);
+    addInstance(instance) {
+        this.instances.push(instance);
     }
 
-    removeMesh(mesh) {
-        const index = this.meshes.indexOf(mesh);
+    removeInstance(instance) {
+        const index = this.instances.indexOf(instance);
         if (index !== -1) {
-            this.meshes.splice(index, 1);
+            this.instances.splice(index, 1);
         }
     }
 
     updateLocalMatrix() {
-        mat4.fromRotationTranslationScale(
+        this.localMatrix = mat4.fromRotationTranslationScale(
             this.localMatrix,
             this.rotation,
             this.position,
@@ -71,9 +74,9 @@ class Node {
         }
 
         if (parentWorldMatrix) {
-            mat4.multiply(this.worldMatrix, parentWorldMatrix, this.localMatrix);
+            this.worldMatrix = mat4.multiply(this.worldMatrix, parentWorldMatrix, this.localMatrix);
         } else {
-            mat4.copy(this.worldMatrix, this.localMatrix);
+            this.worldMatrix = mat4.copy(this.worldMatrix, this.localMatrix);
         }
 
         this.children.forEach(child => {
@@ -106,7 +109,7 @@ class Node {
     }
 }
 
-class SceneGraph {
+export class SceneGraph {
     constructor() {
         this.root = new Node('root');
         this.shaderPrograms = new Map();
@@ -118,7 +121,7 @@ class SceneGraph {
         this.root.updateWorldMatrix();
     }
 
-    render(gl, activeCamera) {
+    render(activeCamera, uniformManager) {
         if (!activeCamera) {
             throw new Error('No active camera set for rendering');
         }
@@ -127,23 +130,38 @@ class SceneGraph {
         this.update();
 
         // Get camera matrices
-        const viewMatrix = activeCamera.viewMatrix;
+        // console.log(activeCamera.viewMatrix);
+        console.log(activeCamera.viewMatrix);
+        const viewMatrix = m4.inverse(activeCamera.viewMatrix);
+        console.log(viewMatrix);
+        //console.log(viewMatrix);
         const projectionMatrix = activeCamera.projectionMatrix;
 
         // Render traversal
         this.root.traverse(node => {
-            if (!node.enabled || node.meshes.length === 0) return;
+            if (!node.enabled || node.instances.length === 0) return;
 
-            node.meshes.forEach(mesh => {
-                const shader = this.shaderPrograms.get(mesh.shader);
+            node.instances.forEach(instance => {
+                const shader = this.shaderPrograms.get(instance.shader);
                 if (!shader) return;
 
-                gl.useProgram(shader.program);
+                // gl.useProgram(shader);
+                //
+                const viewProjectionMatrix = mat4.multiply(mat4.create(), projectionMatrix, viewMatrix);
+                const matrix = mat4.multiply(mat4.create(), viewProjectionMatrix, node.worldMatrix);
 
-                // Set common uniforms
-                shader.setUniform('u_worldMatrix', node.worldMatrix);
-                shader.setUniform('u_viewMatrix', viewMatrix);
-                shader.setUniform('u_projectionMatrix', projectionMatrix);
+                // Merge common uniforms with out specific ones
+                const mergedUniforms = {
+                    ...instance.uniforms, ... {
+                        u_matrix: matrix,
+                        u_worldMatrix: node.worldMatrix,
+                        u_viewMatrix: viewMatrix,
+                        u_projectionMatrix: projectionMatrix
+                    }
+                };
+                // console.log(mergedUniforms);
+                uniformManager.setUniforms(mergedUniforms);
+                uniformManager.updateProgram(shader);
 
                 // Set light uniforms if available
                 this.lights.forEach(light => {
@@ -151,7 +169,7 @@ class SceneGraph {
                 });
 
                 // Render the mesh
-                mesh.render(gl, shader);
+                instance.mesh.draw(shader);
             });
         });
     }
@@ -174,26 +192,26 @@ class SceneGraph {
 }
 
 // Example mesh class interface (implementation depends on your rendering setup)
-class Mesh {
-    constructor(geometry, material, shader = 'default') {
-        this.geometry = geometry;
-        this.material = material;
-        this.shader = shader;
-    }
-
-    render(gl, shader) {
-        // Set material uniforms
-        this.material.setUniforms(gl, shader);
-
-        // Bind geometry buffers
-        this.geometry.bind(gl);
-
-        // Draw
-        gl.drawElements(
-            this.geometry.drawMode,
-            this.geometry.indexCount,
-            this.geometry.indexType,
-            0
-        );
-    }
-}
+// class Mesh {
+//     constructor(geometry, material, shader = 'default') {
+//         this.geometry = geometry;
+//         this.material = material;
+//         this.shader = shader;
+//     }
+// 
+//     render(gl, shader) {
+//         // Set material uniforms
+//         this.material.setUniforms(gl, shader);
+// 
+//         // Bind geometry buffers
+//         this.geometry.bind(gl);
+// 
+//         // Draw
+//         gl.drawElements(
+//             this.geometry.drawMode,
+//             this.geometry.indexCount,
+//             this.geometry.indexType,
+//             0
+//         );
+//     }
+// }

@@ -56,7 +56,9 @@ export async function main() {
 
         gl.useProgram(shaderProgram);
 
-        scene.draw(shaderProgram);
+        scene.addShaderProgram("default", shaderProgram);
+
+        scene.draw();
         // TODO(plink): figure this bit out 
         // setBuffersAndAttributes(attribSetters, attributeManager.bufferInfo());
         // uniformManager.updateProgram(shaderProgram);
@@ -74,36 +76,17 @@ export async function main() {
 
 function setupScene(gl, controlManager) {
     const scene = new Scene(gl);
-    const square = [-.25, -.25, 0.0,
-        .25, .25, 0.0,
-    -.25, .25, 0.0,
-    -.25, -.25, 0.0,
-        .25, -.25, 0.0,
-        .25, .25, 0.0
-    ];
-    scene.createMesh('square', {
-        a_position: { data: square, numComponents: 3 }
-    });
-    const points = [0.0, 0.0, 0.0, 0.5, 0.5, 0.0, -0.5, 0.5, 0.0]
-    const triangle = [0.0, 0.0, 0.0, 0.5, 0.5, 0.0, -0.5, 0.5, 0.0];
 
+    scene.createCamera(gl, 30, 0.1, 1000);
 
-    scene.createMesh('triangle', {
-        a_position: { data: triangle, numComponents: 3 }
+    scene.createMesh('f', {
+        a_position: { data: get3DGeometry(), numComponents: 3 }
     });
 
-    scene.createInstance('triangle', {
-        u_offset: [0.5, 0.0, 0.0],
-        u_color: [() => controlManager.getValue("x"), 0.0, 0.0, 1.0]
+    scene.createInstance('f', {
+        u_color: [() => controlManager.getValue("x"), 0.0, 1.0, 1.0]
     });
-    scene.createInstance('square', {
-        u_offset: [0.0, 0.5, 0.0],
-        u_color: [0.0, () => controlManager.getValue("x"), 0.0, 1.0]
-    });
-    scene.createInstance('triangle', {
-        u_offset: [0.0, 0.0, 0.0],
-        u_color: [0.0, 0.0, () => controlManager.getValue("x"), 1.0]
-    });
+
 
     return scene;
 

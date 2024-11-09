@@ -1,4 +1,10 @@
 export var m4 = {
+  identity: function() {
+    [1.0, 0.0, 0.0, 0.0,
+      0.0, 1.0, 0.0, 0.0,
+      0.0, 0.0, 1.0, 0, 0,
+      0.0, 0.0, 0.0, 1.0]
+  },
   transpose: function(m) {
     return [
       m[0], m[4], m[8], m[12],
@@ -548,7 +554,7 @@ export function get3DGeometry() {
   // We could do by changing all the values above but I'm lazy.
   // We could also do it with a matrix at draw time but you should
   // never do stuff at draw time if you can do it at init time.
-  var matrix = m4.xRotation(Math.PI);
+  var matrix = m4.yRotation(Math.PI); //Math.PI);
   matrix = m4.translate(matrix, -50, -75, -15);
 
   for (var ii = 0; ii < positions.length; ii += 3) {
