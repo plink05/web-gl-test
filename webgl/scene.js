@@ -42,7 +42,7 @@ export class Scene {
 
     insertNode(name, parentName) {
         const parent = this.sceneGraph.root.findByName(parentName);
-        const child = this.sceneGraph.root.createNode(name);
+        const child = this.sceneGraph.createNode(name);
         parent.addChild(child);
         return child;
     }

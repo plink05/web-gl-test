@@ -79,14 +79,31 @@ function setupScene(gl, controlManager) {
 
     scene.createCamera(gl, 30, 0.1, 1000);
 
+    const child = scene.insertNode("child", "root");
+
+    child.setPosition(100, 0, 1);
+    child.setRotationFromEuler(0, 0, Math.PI / 2);
+
+    const gchild = scene.insertNode("grandchild", "child");
+
+    gchild.setRotationFromEuler(0, 0, Math.PI / 2);
+
+
     scene.createMesh('f', {
         a_position: { data: get3DGeometry(), numComponents: 3 }
     });
 
     scene.createInstance('f', {
-        u_color: [() => controlManager.getValue("x"), 0.0, 1.0, 1.0]
+        u_color: [() => controlManager.getValue("x"), 0.0, 0.0, 1.0]
     });
 
+    scene.createInstance('f', {
+        u_color: [() => controlManager.getValue("x"), 0.0, 1.0, 1.0]
+    }, "child");
+
+    scene.createInstance('f', {
+        u_color: [0.0, () => controlManager.getValue("x"), 1.0, 1.0]
+    }, "grandchild");
 
     return scene;
 
