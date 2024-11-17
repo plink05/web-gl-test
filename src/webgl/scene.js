@@ -2,8 +2,9 @@
 import { UniformManager } from "./uniforms.js";
 import { AttributeManager } from "./attribs.js";
 import { SceneGraph } from "./scenegraph.js";
-import { PerspectiveCamera, FirstPersonCamera } from "./camera.js";
+import { FirstPersonCamera } from "./camera.js";
 import { Lights } from "./lights.js";
+import { TextureManager } from "./textures.js";
 class Mesh {
     constructor(gl, attributes) {
         this.gl = gl;
@@ -38,6 +39,7 @@ export class Scene {
         this.gl = gl;
         // this.instances = [];
         this.uniformManager = new UniformManager(gl);
+        this.textureManager = new TextureManager(gl);
         this.meshes = new Map(); // Store mesh templates
         this.sceneGraph = new SceneGraph();
     }
@@ -99,7 +101,10 @@ export class Scene {
             throw new Error(`No parent node named "${node}" found`);
         }
         this.sceneGraph.lights.push(light);
+    }
 
+    async addTexture(gl, url) {
+        await this.textureManager.loadGeotiff("/sample.tif");
     }
 
     addShaderProgram(shaderName, shader) {
@@ -131,7 +136,7 @@ export class Scene {
 
         camera.update(deltaTime);
 
-        this.sceneGraph.render(camera, this.uniformManager);
+        this.sceneGraph.render(camera, this.uniformManager, this.textureManager);
 
         // TODO(plink): combine this with the render call
         // this.uniformManager.setUniforms(instance.uniforms);

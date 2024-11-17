@@ -11,67 +11,6 @@ import { Scene } from "./webgl/scene.js";
 
 import { loadGeoTIFF } from "./libs/geotiff.js";
 
-function findMinMax(array) {
-    let min = array[0];
-    let max = array[0];
-
-    for (let i = 1; i < array.length; i++) {
-        if (array[i] < min) min = array[i];
-        if (array[i] > max) max = array[i];
-    }
-
-    return { min, max };
-}
-
-function processData(textureInfo) {
-    const data = textureInfo.data;
-    const width = textureInfo.width;
-    const height = textureInfo.height;
-
-
-    if (data[0].length !== width * height ||
-        data[1].length !== width * height ||
-        data[2].length !== width * height) {
-        throw new Error('Data size mismatch');
-    }
-
-    const bufferSize = width * height * 3;
-
-    const normalizedData = new Uint8Array(bufferSize);
-
-    const mins = [
-        findMinMax(data[0]).min,
-        findMinMax(data[1]).min,
-        findMinMax(data[2]).min,
-    ];
-    const maxs = [
-        findMinMax(data[0]).max,
-        findMinMax(data[1]).max,
-        findMinMax(data[2]).max,
-    ];
-    // for (let i = 0; i < width * height; i++) {
-    //     normalizedData[i * 3] = data[0][i] >> 8;     // Convert 16-bit to 8-bit
-    //     normalizedData[i * 3 + 1] = data[1][i] >> 8;
-    //     normalizedData[i * 3 + 2] = data[2][i] >> 8;
-    // }
-    //
-    //
-    for (let y = 0; y < height; y++) {
-        for (let x = 0; x < width; x++) {
-            const i = y * width + x;
-            const outIndex = i * 3;
-
-            // Make sure we don't go past our data bounds
-            if (i < width * height) {
-                normalizedData[outIndex] = data[0][i] >> 8;
-                normalizedData[outIndex + 1] = data[1][i] >> 8;
-                normalizedData[outIndex + 2] = data[2][i] >> 8;
-            }
-        }
-    }
-
-    return normalizedData;
-}
 
 export async function main() {
     const canvas = document.querySelector("#glCanvas");
@@ -91,22 +30,8 @@ export async function main() {
     // Initialize shader program
     const shaderProgram = initShaderProgram(gl, vsSource, fsSource);
 
-    // var uniformSetters = createUniformSetters(gl, shaderProgram);
-    // var attribSetters = createAttributeSetters(gl, shaderProgram);
-
     var controlManager = setupHandlers();
     var scene = setupScene(gl, controlManager);
-
-    // var uniformManager = setupUniformManager(gl, controlManager);
-
-    // var attributeManager = setupAttributeManager(gl);
-    //
-
-    var textureInfo = await loadGeoTIFF("/sample.tif");
-    var texture = gl.createTexture();
-    // var { data, width, height } = textureInfo;
-    const normalizedData = processData(textureInfo);
-
 
 
     // Initialize FPS counter
@@ -124,27 +49,6 @@ export async function main() {
         gl.enable(gl.DEPTH_TEST);
 
         gl.useProgram(shaderProgram);
-        var texture = gl.createTexture();
-
-        gl.bindTexture(gl.TEXTURE_2D, texture);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-
-        gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
-        gl.texImage2D(
-            gl.TEXTURE_2D,      // target
-            0,                  // mip level
-            gl.RGB,       // internal format
-            1001,              // width
-            1001,             // height
-            0,                  // border
-            gl.RGB,       // format
-            gl.UNSIGNED_BYTE,   // type
-            normalizedData      // data
-        );
-
         scene.addShaderProgram("default", shaderProgram);
 
         scene.draw(time);
@@ -205,6 +109,8 @@ function setupScene(gl, controlManager) {
     scene.createInstance('quad', {
         u_color: [() => controlManager.getValue("x"), 0.0, 0.0, 1.0]
     });
+
+    scene.addTexture("/sample.tif");
 
 
     // scene.createMesh('f', {

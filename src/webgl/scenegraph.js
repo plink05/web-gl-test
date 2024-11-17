@@ -121,7 +121,7 @@ export class SceneGraph {
         this.root.updateWorldMatrix();
     }
 
-    render(activeCamera, uniformManager) {
+    render(activeCamera, uniformManager, textureManager) {
         if (!activeCamera) {
             throw new Error('No active camera set for rendering');
         }
@@ -169,6 +169,8 @@ export class SceneGraph {
                     ...mergedUniforms, ...merged
                 }
                 // console.log(mergedUniforms);
+                //
+                // TODO(plink): allow switching textures based on materials
                 uniformManager.setUniforms(mergedUniformss);
                 uniformManager.updateProgram(shader);
 
